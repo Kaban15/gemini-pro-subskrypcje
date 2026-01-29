@@ -39,11 +39,10 @@ export default function Home() {
               Napędzany przez Google Gemini Pro
             </span>
           </div>
-          <h1 className="mb-6 text-5xl font-bold tracking-tight text-white md:text-6xl">
-            AI który rozumie
-            <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-              {" "}
-              Twoje potrzeby
+          <h1 className="mb-6 text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
+            Jak uzyskać dostęp do najpotężniejszego AI od Google za ułamek ceny...{" "}
+            <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
+              Legalnie i bez technicznego bełkotu!
             </span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-zinc-400">
