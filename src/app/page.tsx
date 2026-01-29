@@ -10,6 +10,8 @@ import { PRICE_IDS, PRICES, calculateYearlySavingsPercent } from "@/lib/stripe";
 
 const FEATURES = [
   "Nieograniczony dostęp do Gemini Pro",
+  "Dysk 2TB + Nowy model Gemini 3 Pro + Nano Banana Pro",
+  "1.000 kredytów AI w Google Flow (Veo 3.1)",
   "Priorytetowe czasy odpowiedzi",
   "Zaawansowane możliwości rozumowania",
   "Generowanie i analiza kodu",
