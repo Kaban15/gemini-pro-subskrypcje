@@ -4,6 +4,7 @@ import { Sparkles, Zap, Shield, MessageSquare } from "lucide-react";
 import { PricingCard } from "@/components/PricingCard";
 import { Benefits } from "@/components/Benefits";
 import { Testimonials } from "@/components/Testimonials";
+import { TechSpecs } from "@/components/TechSpecs";
 import { FAQ } from "@/components/FAQ";
 import { Contact } from "@/components/Contact";
 import { PRICE_IDS, PRICES, calculateYearlySavingsPercent } from "@/lib/stripe";
@@ -69,6 +70,9 @@ export default function Home() {
 
       {/* Benefits Section */}
       <Benefits />
+
+      {/* Tech Specs Section */}
+      <TechSpecs />
 
       {/* Testimonials Section */}
       <Testimonials />
