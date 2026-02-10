@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 import { OrderModal } from "./OrderModal";
 
 interface PricingCardProps {
@@ -69,7 +70,10 @@ export function PricingCard({
         </ul>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            track("Select Plan", { plan: name, price });
+            setIsModalOpen(true);
+          }}
           className={cn(
             "w-full rounded-lg py-3 font-semibold transition-all duration-200",
             popular

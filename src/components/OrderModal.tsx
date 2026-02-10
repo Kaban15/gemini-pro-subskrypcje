@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 import { X, Clock, Calendar, Shield } from "lucide-react";
 
 interface OrderModalProps {
@@ -66,6 +67,10 @@ ${formData.message || "Brak dodatkowej wiadomości"}
       });
 
       if (response.ok) {
+        track("Complete Order", {
+          paymentMethod: formData.paymentMethod,
+          quantity: formData.quantity,
+        });
         setSubmitSuccess(true);
         setTimeout(() => {
           onClose();

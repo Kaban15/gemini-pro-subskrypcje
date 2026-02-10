@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Send, Bot, User, Loader2, Lock } from "lucide-react";
+import { track } from "@vercel/analytics";
 import { cn } from "@/lib/utils";
 import { useRef, useEffect, useState, useMemo } from "react";
 
@@ -35,6 +36,7 @@ export function ChatInterface({ isSubscribed }: ChatInterfaceProps) {
 
     const message = inputValue;
     setInputValue("");
+    track("Chat Message Sent");
     await sendMessage({ text: message });
   };
 
