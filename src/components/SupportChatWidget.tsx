@@ -15,20 +15,10 @@ export function SupportChatWidget() {
     []
   );
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport,
-    onError: (err) => {
-      console.error("useChat error:", err);
-    },
-  });
+  const { messages, sendMessage, status, error } = useChat({ transport });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoading = status === "streaming" || status === "submitted";
-
-  // Debug: log state changes
-  useEffect(() => {
-    console.log("[SupportChat] status:", status, "messages:", messages.length, "error:", error?.message);
-  }, [status, messages, error]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,10 +135,6 @@ export function SupportChatWidget() {
               Błąd: {error.message}
             </div>
           )}
-          {/* Debug info - remove after fixing */}
-          <div className="mt-2 rounded bg-zinc-900 p-2 text-[10px] text-zinc-500">
-            Status: {status} | Msgs: {messages.length} | Err: {error?.message ?? "none"}
-          </div>
         </div>
 
         {/* Input */}

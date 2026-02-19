@@ -37,6 +37,7 @@ Twoje zasady:
 ${KNOWLEDGE_BASE}`,
           });
 
+          writer.write({ type: "text-start", id: messageId });
           for await (const textPart of result.textStream) {
             writer.write({
               type: "text-delta",
@@ -44,15 +45,18 @@ ${KNOWLEDGE_BASE}`,
               id: messageId,
             });
           }
+          writer.write({ type: "text-end", id: messageId });
         } catch (err) {
           const errorMsg =
             err instanceof Error ? err.message : "Nieznany błąd";
           console.error("streamText error:", errorMsg);
+          writer.write({ type: "text-start", id: messageId });
           writer.write({
             type: "text-delta",
             delta: `[Błąd: ${errorMsg}]`,
             id: messageId,
           });
+          writer.write({ type: "text-end", id: messageId });
         }
       },
       onError: (error) => {

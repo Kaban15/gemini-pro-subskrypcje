@@ -32,6 +32,7 @@ Format your responses using markdown when appropriate.`,
         });
 
         // Write text chunks to the UI message stream
+        writer.write({ type: "text-start", id: messageId });
         for await (const textPart of result.textStream) {
           writer.write({
             type: "text-delta",
@@ -39,6 +40,7 @@ Format your responses using markdown when appropriate.`,
             id: messageId,
           });
         }
+        writer.write({ type: "text-end", id: messageId });
       },
       onError: (error) => {
         console.error("Stream error:", error);
