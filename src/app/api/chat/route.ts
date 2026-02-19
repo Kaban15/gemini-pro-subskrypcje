@@ -1,13 +1,29 @@
-import { streamText, convertToModelMessages } from "ai";
+import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 
 export const maxDuration = 30;
+
+// Convert UI messages (parts format) to model messages (content format)
+function toModelMessages(
+  messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }>; content?: string }>
+) {
+  return messages.map((msg) => {
+    if (typeof msg.content === "string") {
+      return { role: msg.role as "user" | "assistant", content: msg.content };
+    }
+    const text = msg.parts
+      ?.filter((p) => p.type === "text" && p.text)
+      .map((p) => p.text)
+      .join("") ?? "";
+    return { role: msg.role as "user" | "assistant", content: text };
+  });
+}
 
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
-    const modelMessages = await convertToModelMessages(messages);
+    const modelMessages = toModelMessages(messages);
 
     const result = streamText({
       model: google("gemini-1.5-pro-latest"),
@@ -22,10 +38,7 @@ Format your responses using markdown when appropriate.`,
     console.error("Chat API error:", error);
     return new Response(
       JSON.stringify({ error: "Failed to process chat request" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
