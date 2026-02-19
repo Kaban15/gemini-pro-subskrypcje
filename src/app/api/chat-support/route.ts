@@ -5,15 +5,9 @@ import {
 } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { nanoid } from "nanoid";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { KNOWLEDGE_BASE } from "@/knowledge/base";
 
 export const maxDuration = 30;
-
-const knowledgeBase = readFileSync(
-  join(process.cwd(), "src/knowledge/base.md"),
-  "utf-8"
-);
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +33,7 @@ Twoje zasady:
 
 ## Baza wiedzy:
 
-${knowledgeBase}`,
+${KNOWLEDGE_BASE}`,
         });
 
         for await (const textPart of result.textStream) {
