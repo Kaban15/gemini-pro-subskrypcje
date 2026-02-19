@@ -1,10 +1,5 @@
-import {
-  streamText,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-} from "ai";
+import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { nanoid } from "nanoid";
 import { KNOWLEDGE_BASE } from "@/knowledge/base";
 
 export const maxDuration = 30;
@@ -13,15 +8,10 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
-    const messageId = nanoid();
-
-    const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
-        try {
-          const result = await streamText({
-            model: openai("gpt-4o-mini"),
-            messages,
-            system: `Jesteś pomocnym asystentem obsługi klienta na stronie Gemini Pro. Odpowiadasz WYŁĄCZNIE po polsku.
+    const result = streamText({
+      model: openai("gpt-4o-mini"),
+      messages,
+      system: `Jesteś pomocnym asystentem obsługi klienta na stronie Gemini Pro. Odpowiadasz WYŁĄCZNIE po polsku.
 
 Twoje zasady:
 - Odpowiadaj na pytania klientów na podstawie poniższej bazy wiedzy
@@ -35,37 +25,9 @@ Twoje zasady:
 ## Baza wiedzy:
 
 ${KNOWLEDGE_BASE}`,
-          });
-
-          writer.write({ type: "text-start", id: messageId });
-          for await (const textPart of result.textStream) {
-            writer.write({
-              type: "text-delta",
-              delta: textPart,
-              id: messageId,
-            });
-          }
-          writer.write({ type: "text-end", id: messageId });
-        } catch (err) {
-          const errorMsg =
-            err instanceof Error ? err.message : "Nieznany błąd";
-          console.error("streamText error:", errorMsg);
-          writer.write({ type: "text-start", id: messageId });
-          writer.write({
-            type: "text-delta",
-            delta: `[Błąd: ${errorMsg}]`,
-            id: messageId,
-          });
-          writer.write({ type: "text-end", id: messageId });
-        }
-      },
-      onError: (error) => {
-        console.error("Support chat stream error:", error);
-        return error instanceof Error ? error.message : "Wystąpił błąd";
-      },
     });
 
-    return createUIMessageStreamResponse({ stream });
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Support chat API error:", error);
     return new Response(

@@ -109,12 +109,6 @@ export function SupportChatWidget() {
                           </span>
                         ))}
                     </p>
-                    {/* Debug */}
-                    {message.role === "assistant" && (
-                      <pre className="mt-1 text-[9px] text-zinc-500 overflow-auto max-h-20">
-                        {JSON.stringify(message.parts, null, 1)}
-                      </pre>
-                    )}
                   </div>
                   {message.role === "user" && (
                     <div className="flex-shrink-0 rounded-full bg-zinc-700 p-1.5 h-fit">
