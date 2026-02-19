@@ -1,4 +1,4 @@
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { KNOWLEDGE_BASE } from "@/knowledge/base";
 
@@ -8,9 +8,11 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
+    const modelMessages = await convertToModelMessages(messages);
+
     const result = streamText({
       model: openai("gpt-4o-mini"),
-      messages,
+      messages: modelMessages,
       system: `Jesteś pomocnym asystentem obsługi klienta na stronie Gemini Pro. Odpowiadasz WYŁĄCZNIE po polsku.
 
 Twoje zasady:
@@ -30,8 +32,9 @@ ${KNOWLEDGE_BASE}`,
     return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("Support chat API error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: "Nie udało się przetworzyć wiadomości" }),
+      JSON.stringify({ error: errMsg }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
