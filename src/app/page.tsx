@@ -7,6 +7,7 @@ import { Testimonials } from "@/components/Testimonials";
 import { TechSpecs } from "@/components/TechSpecs";
 import { FAQ } from "@/components/FAQ";
 import { Contact } from "@/components/Contact";
+import { SupportChatWidget } from "@/components/SupportChatWidget";
 import { PRICE_IDS, PRICES, calculateYearlySavingsPercent } from "@/lib/stripe";
 
 const FEATURES = [
@@ -121,6 +122,9 @@ export default function Home() {
           zastrzeżone.
         </p>
       </footer>
+
+      {/* Support Chat Widget */}
+      <SupportChatWidget />
     </div>
   );
 }
