@@ -17,10 +17,11 @@ export async function POST(req: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const result = await streamText({
-          model: openai("gpt-4o-mini"),
-          messages,
-          system: `Jesteś pomocnym asystentem obsługi klienta na stronie Gemini Pro. Odpowiadasz WYŁĄCZNIE po polsku.
+        try {
+          const result = await streamText({
+            model: openai("gpt-4o-mini"),
+            messages,
+            system: `Jesteś pomocnym asystentem obsługi klienta na stronie Gemini Pro. Odpowiadasz WYŁĄCZNIE po polsku.
 
 Twoje zasady:
 - Odpowiadaj na pytania klientów na podstawie poniższej bazy wiedzy
@@ -34,12 +35,22 @@ Twoje zasady:
 ## Baza wiedzy:
 
 ${KNOWLEDGE_BASE}`,
-        });
+          });
 
-        for await (const textPart of result.textStream) {
+          for await (const textPart of result.textStream) {
+            writer.write({
+              type: "text-delta",
+              delta: textPart,
+              id: messageId,
+            });
+          }
+        } catch (err) {
+          const errorMsg =
+            err instanceof Error ? err.message : "Nieznany błąd";
+          console.error("streamText error:", errorMsg);
           writer.write({
             type: "text-delta",
-            delta: textPart,
+            delta: `[Błąd: ${errorMsg}]`,
             id: messageId,
           });
         }
