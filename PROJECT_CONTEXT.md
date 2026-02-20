@@ -13,7 +13,7 @@ Gemini Pro SaaS to polskojęzyczna strona landing page i aplikacja SaaS umożliw
 | **TypeScript** | ^5 (tryb `strict`) |
 | **CSS** | Tailwind CSS v4 (nowa składnia `@import "tailwindcss"` + `@theme inline`, bez `tailwind.config.js`) |
 | **PostCSS** | `@tailwindcss/postcss` ^4 |
-| **AI SDK** | `ai` ^6.0.57, `@ai-sdk/google` ^3.0.15, `@ai-sdk/react` ^3.0.59 (Vercel AI SDK) |
+| **AI SDK** | `ai` ^6.0.57, `@ai-sdk/google` ^3.0.15, `@ai-sdk/openai` ^3.0.30, `@ai-sdk/react` ^3.0.59 (Vercel AI SDK) |
 | **Email** | `resend` ^6.9.1 |
 | **Ikony** | `lucide-react` ^0.563.0 |
 | **Utility CSS** | `clsx` ^2.1.1 + `tailwind-merge` ^3.4.0 (wrapper `cn()`) |
@@ -23,7 +23,7 @@ Gemini Pro SaaS to polskojęzyczna strona landing page i aplikacja SaaS umożliw
 | **Baza danych** | **Brak** — aplikacja nie korzysta z żadnej bazy danych |
 | **Autentykacja** | **Brak** — brak systemu auth (tylko placeholder w komentarzu) |
 | **Testy** | **Brak** — nie skonfigurowano żadnego frameworka testowego |
-| **Analityka** | **Brak** |
+| **Analityka** | Vercel Analytics z Custom Events tracking |
 
 ## Komendy
 
@@ -44,7 +44,8 @@ Aplikacja korzysta ze standardowego **Next.js App Router**. Istnieje **jedna str
 
 **Brak dodatkowych stron** — cały routing to:
 - `/` — strona główna (landing page)
-- `/api/chat` — endpoint API do czatu AI
+- `/api/chat` — endpoint API do czatu AI (Gemini Pro)
+- `/api/chat-support` — endpoint API do chatbota obsługi klienta (OpenAI GPT-4o-mini)
 - `/api/contact` — endpoint API do wysyłania zamówień/wiadomości email
 
 ### Główne flow użytkownika
@@ -78,14 +79,38 @@ ChatInterface (komponent kliencki)
     │
     └── useChat() + DefaultChatTransport → POST /api/chat
         │
-        └── streamText() z google("gemini-1.5-pro-latest")
+        └── toModelMessages() konwersja parts→content
             │
-            └── createUIMessageStream → createUIMessageStreamResponse
+            └── streamText() z google("gemini-1.5-pro-latest")
                 │
-                └── Streaming text-delta do klienta
+                └── result.toUIMessageStreamResponse()
 ```
 
 > **Ważne:** Komponent `ChatInterface` istnieje w `src/components/ChatInterface.tsx`, ale **nie jest importowany ani renderowany** w `src/app/page.tsx`. Przyjmuje prop `isSubscribed: boolean` jako placeholder do kontroli dostępu.
+
+### Flow chatbota obsługi klienta (floating widget na stronie głównej)
+
+```
+SupportChatWidget (floating widget, komponent kliencki)
+    │
+    └── useChat() + DefaultChatTransport → POST /api/chat-support
+        │
+        └── toModelMessages() konwersja parts→content
+            │
+            └── streamText() z openai("gpt-4o-mini") + KNOWLEDGE_BASE system prompt
+                │
+                └── result.toUIMessageStreamResponse()
+```
+
+> **Ważne:** `SupportChatWidget` jest osadzony na stronie głównej (`page.tsx`) jako floating bubble w prawym dolnym rogu. Używa bazy wiedzy z `src/knowledge/base.ts` (eksportowana jako stała TS, nie plik — wymagane dla Vercel serverless). Odpowiada wyłącznie po polsku.
+
+### Krytyczny wzorzec: AI SDK v6 streaming
+
+**useChat** z `@ai-sdk/react` wysyła wiadomości w formacie **UIMessage** (z tablicą `parts`). API route musi:
+1. **Skonwertować** wiadomości z formatu `parts` na `content` string (helper `toModelMessages()`)
+2. **Zwrócić** `result.toUIMessageStreamResponse()` — NIE używać `createUIMessageStream` z ręcznym `writer.write()`
+
+Ręczne `writer.write()` generuje niekompletny protokół streamu (brak eventów `start`, `start-step`, metadanych providerów), przez co klient nie akumuluje tekstu odpowiedzi.
 
 ## Hierarchia Context Providerów
 
@@ -115,6 +140,8 @@ Aplikacja **nie używa żadnych custom Context Providerów**. Drzewo renderowani
 | **FAQ** | `FAQ` + `FAQItemComponent` | Brak (hardcoded array) | Brak | `src/components/FAQ.tsx` |
 | **Kontakt** | `Contact` | Brak (linki statyczne) | Brak | `src/components/Contact.tsx` |
 | **Czat AI** | `ChatInterface` | `useChat()` z `@ai-sdk/react` | Brak | `src/components/ChatInterface.tsx` |
+| **Chatbot support** | `SupportChatWidget` | `useChat()` z `@ai-sdk/react` + `DefaultChatTransport` | Brak | `src/components/SupportChatWidget.tsx` |
+| **Baza wiedzy** | — | Eksportowana stała `KNOWLEDGE_BASE` | Brak | `src/knowledge/base.ts` |
 | **Toggle rozliczeń** | `BillingToggle` | Brak (kontrolowany komponent) | Brak | `src/components/BillingToggle.tsx` |
 
 ## Warstwa danych — szczegóły
@@ -142,14 +169,25 @@ Aplikacja **nie posiada bazy danych**. Wszystkie dane treściowe są zapisane be
 - **Odbiorca:** `prolifefit777@gmail.com` (hardcoded)
 - **Nadawca:** `Gemini Pro SaaS <onboarding@resend.dev>`
 
-### Serwis AI Chat (Vercel AI SDK)
+### Serwis AI Chat — Gemini (Vercel AI SDK)
 
 - **Endpoint:** `POST /api/chat`
 - **Model:** `google("gemini-1.5-pro-latest")`
 - **Timeout:** `maxDuration = 30` sekund
 - **System prompt:** Hardcoded w route handler — instrukcja bycia pomocnym asystentem AI
-- **Streaming:** `createUIMessageStream` + `createUIMessageStreamResponse`
-- **ID wiadomości:** generowane przez `nanoid()`
+- **Streaming:** `streamText()` → `result.toUIMessageStreamResponse()`
+- **Konwersja wiadomości:** `toModelMessages()` — ręczna konwersja z UIMessage (parts) na ModelMessage (content)
+
+### Serwis AI Chat — Support Chatbot (OpenAI)
+
+- **Endpoint:** `POST /api/chat-support`
+- **Model:** `openai("gpt-4o-mini")`
+- **Timeout:** `maxDuration = 30` sekund
+- **System prompt:** Instrukcja obsługi klienta po polsku + pełna baza wiedzy z `src/knowledge/base.ts`
+- **Baza wiedzy:** `KNOWLEDGE_BASE` — eksportowana jako stała TypeScript (nie plik .md) — wymagane dla Vercel serverless, gdzie `readFileSync` nie działa
+- **Streaming:** `streamText()` → `result.toUIMessageStreamResponse()`
+- **Konwersja wiadomości:** `toModelMessages()` — ręczna konwersja z UIMessage (parts) na ModelMessage (content)
+- **Widget:** Floating bubble w prawym dolnym rogu strony (`SupportChatWidget`)
 
 ### Kluczowe formularze/modale
 
@@ -157,6 +195,7 @@ Aplikacja **nie posiada bazy danych**. Wszystkie dane treściowe są zapisane be
 |---|---|---|---|
 | **OrderModal** | `OrderModal.tsx` | `paymentMethod` (select), `quantity` (select 1-5), `email` (input), `message` (textarea) | `POST /api/contact` |
 | **Chat input** | `ChatInterface.tsx` | `inputValue` (text input) | `POST /api/chat` |
+| **Support chat input** | `SupportChatWidget.tsx` | `inputValue` (text input) | `POST /api/chat-support` |
 
 ## Offline support i bezpieczeństwo synchronizacji
 
@@ -166,7 +205,8 @@ Aplikacja **nie posiada bazy danych**. Wszystkie dane treściowe są zapisane be
 
 | Endpoint | Metoda | Plik | Opis | Zabezpieczenia |
 |---|---|---|---|---|
-| `/api/chat` | POST | `src/app/api/chat/route.ts` | Streamingowy czat z Gemini Pro | **Brak** — endpoint jest publiczny, brak auth, brak rate limitingu. Placeholder auth w komentarzu (linie 13-19). `maxDuration = 30s`. |
+| `/api/chat` | POST | `src/app/api/chat/route.ts` | Streamingowy czat z Gemini Pro | **Brak** — endpoint jest publiczny, brak auth, brak rate limitingu. `maxDuration = 30s`. |
+| `/api/chat-support` | POST | `src/app/api/chat-support/route.ts` | Chatbot obsługi klienta (OpenAI GPT-4o-mini) z bazą wiedzy | **Brak** — endpoint jest publiczny, brak auth, brak rate limitingu. `maxDuration = 30s`. |
 | `/api/contact` | POST | `src/app/api/contact/route.ts` | Wysyłanie zamówień/wiadomości email przez Resend | **Brak** — endpoint jest publiczny, brak auth, brak rate limitingu. Jedyna walidacja: sprawdzenie czy pola `name`, `email`, `message` istnieją. |
 
 > **Uwaga bezpieczeństwa:** Oba endpointy nie posiadają żadnych mechanizmów zabezpieczeń — brak autentykacji, autoryzacji, rate limitingu ani walidacji CSRF. Endpoint `/api/contact` jest podatny na spam.
@@ -186,6 +226,7 @@ Projekt **nie posiada folderu komponentów współdzielonych** (`shared/`, `ui/`
 |---|---|---|
 | `PricingCard` | Tak (2x w `page.tsx`) | Karta cenowa z przyciskiem otwierającym `OrderModal` |
 | `OrderModal` | Tak (renderowany wewnątrz każdego `PricingCard`) | Modal zamówienia z formularzem |
+| `SupportChatWidget` | 1x (w `page.tsx`) | Floating chatbot obsługi klienta (OpenAI GPT-4o-mini) |
 | `BillingToggle` | **Nie używany** | Toggle miesięczny/roczny — istnieje, ale nie jest importowany nigdzie |
 | `ChatInterface` | **Nie używany** | Interfejs czatu — istnieje, ale nie jest importowany w `page.tsx` |
 | `Benefits` | 1x | Sekcja korzyści |
@@ -221,7 +262,7 @@ Aplikacja **nie używa Zod ani żadnej biblioteki walidacji**. Walidacja jest mi
 
 ### 2. Obsługa błędów
 - **API routes:** try/catch z `console.error()` i zwróceniem odpowiedzi JSON z kodem 500
-- **Chat stream:** callback `onError` w `createUIMessageStream` loguje do konsoli
+- **Chat stream:** błędy streamingu obsługiwane przez `toUIMessageStreamResponse()` — emitowane jako eventy `error` w strumieniu SSE
 - **Formularz OrderModal:** blok try/finally (bez obsługi catch — błędy sieciowe nie są wyświetlane użytkownikowi)
 - **ChatInterface:** obiekt `error` z `useChat()` renderowany w czerwonym bannerze
 
@@ -251,7 +292,7 @@ Aplikacja **nie używa Zod ani żadnej biblioteki walidacji**. Walidacja jest mi
 ### 5. Zarządzanie stanem
 - **Brak globalnego stanu** — brak Context, Redux, Zustand
 - Cały stan jest lokalny w komponentach (`useState`)
-- `ChatInterface` używa hooka `useChat()` z `@ai-sdk/react` do zarządzania wiadomościami i statusem streamingu
+- `ChatInterface` i `SupportChatWidget` używają hooka `useChat()` z `@ai-sdk/react` do zarządzania wiadomościami i statusem streamingu
 - `OrderModal` używa jednego obiektu `formData` w `useState` do zarządzania formularzem
 - `FAQItemComponent` — lokalny `useState(false)` do toggle open/close
 
@@ -278,7 +319,8 @@ Na podstawie `.env.example` i kodu źródłowego:
 
 | Zmienna | Używana w | Wymagana |
 |---|---|---|
-| `GOOGLE_GENERATIVE_AI_API_KEY` | `@ai-sdk/google` (automatycznie) | Tak — do API czatu |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | `@ai-sdk/google` (automatycznie) | Tak — do API czatu Gemini |
+| `OPENAI_API_KEY` | `@ai-sdk/openai` (automatycznie) | Tak — do chatbota obsługi klienta |
 | `RESEND_API_KEY` | `src/app/api/contact/route.ts` | Tak — do wysyłania emaili |
 | `STRIPE_SECRET_KEY` | `.env.example` (placeholder) | Nie — Stripe nie jest zintegrowany |
 | `STRIPE_PUBLISHABLE_KEY` | `.env.example` (placeholder) | Nie — Stripe nie jest zintegrowany |
@@ -287,7 +329,7 @@ Na podstawie `.env.example` i kodu źródłowego:
 | `STRIPE_PRICE_ID_YEARLY` | `.env.example` (placeholder) | Nie — Stripe nie jest zintegrowany |
 | `NEXT_PUBLIC_APP_URL` | `.env.example` (placeholder) | Nie — nigdzie nie używana w kodzie |
 
-> **Aktualnie wymagane do działania:** tylko `GOOGLE_GENERATIVE_AI_API_KEY` i `RESEND_API_KEY`.
+> **Aktualnie wymagane do działania:** `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY` i `RESEND_API_KEY`. Na Vercel trzeba je dodać w Settings → Environment Variables.
 
 ## Testy
 
